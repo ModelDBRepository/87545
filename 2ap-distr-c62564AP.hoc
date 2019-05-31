@@ -1,0 +1,411 @@
+load_file("nrngui.hoc")
+cvode_active(1)
+
+dist=1
+
+rel=0.3
+rel1=0.3
+rel2=0.3
+
+numaxon=1
+numsoma=1
+numbasal=61
+numapical=53
+numtrunk=42
+pesi = 3
+
+double vett[pesi]
+
+xopen("geoc62564.hoc")             // geometry file
+xopen("fixnseg.hoc")           
+
+Rm = 28000
+RmDend = Rm/1
+RmSoma = Rm
+RmAx = Rm
+
+Cm    = 1
+CmSoma= Cm
+CmAx  = Cm
+CmDend = Cm*1
+
+RaAll= 150
+RaSoma=150  
+RaAx = 50
+
+Vrest = -65
+dt = 0.1
+gna =  .025
+AXONM = 5
+gkdr = 0.01
+celsius = 35.0  
+KMULT =  0.03
+KMULTP = 0.03
+gcan=0.0//005
+gcal=0.0//005
+gcat=0.0//005
+ghd=0.00005
+nash=0
+
+objref g, b,c, stim, outfile,vbox
+objref  p, s[3], rsyn[3], nc[3], sref, blist[numtrunk]
+strdef filename, dend, trunk
+
+outfile = new File()
+
+for i=0, numtrunk-1 {
+blist[i] = new Vector()
+}
+
+forsec "axon" {insert pas e_pas=Vrest g_pas = 1/RmAx Ra=RaAx cm=CmAx}
+forsec "soma" {insert pas e_pas=Vrest g_pas = 1/RmSoma Ra=RaSoma cm=CmSoma}
+forsec "dendrite"{insert pas e_pas=Vrest g_pas = 1/RmDend Ra=RaAll cm=CmDend}
+forsec "user5" {insert pas e_pas=Vrest g_pas = 1/RmDend Ra=RaAll cm=CmDend}
+
+access soma
+
+freq=50
+geom_nseg()
+tot=0
+forall {tot=tot+nseg}
+distance()
+
+maxdist=0
+forsec "user5" for(x) {if (distance(x)>maxdist) {maxdist=distance(x)}}
+print "total # of segments (50Hz): ",tot, "  max path distance: ", maxdist
+
+//*********mapping bifurcations******************
+
+
+for i=0, numapical-1 apical_dendrite[i] {
+	while (!issection("user5.*")) {
+//	print "before  ", i, secname()
+	sref = new SectionRef()
+	access sref.parent
+	sprint(dend, secname())
+	}
+	print "apical ",i," ",dend
+	for k=0, numtrunk-1 user5[k] {
+	sprint(trunk,secname())
+	x=strcmp(dend, trunk)
+	if (x==0) {blist[k].append(i)}
+	}
+}
+//************************************************
+
+
+
+/*****************lettura da file********************/
+
+ropen("sinapsi_weights.txt")
+for i=0, pesi-1 {
+vett[i]=fscan()*1.e-3
+}
+
+
+/********************  fine  **********************/
+
+
+if (vett[2]==8.e-3) {vett[2]=vett[2]-2.e-3}
+vett[0]=(vett[0])+(20*1.e-3)
+vett[1]=(vett[1])+(30*1.e-3)
+vett[2]=(vett[2])+(41*1.e-3)
+
+ropen()
+
+tstim=1
+strength = 1 /*namps*/
+tstop=200
+
+
+
+vbox = new VBox()
+vbox.intercept(1)
+
+cafact=50.e-6
+//b = new VBox()
+//b.intercept(1)
+g = new Graph()
+g.size(0,tstop,-70,30)
+
+
+
+
+g.addvar("soma[0].v(0.5)",1,1,2*tstop,0,2)
+//g.addvar("user5[28].v(0.5)",8,1,2*tstop,0,2)
+
+//g.addvar("apical_dendrite[21].v(rel)",5,1,2*tstop,0,2)
+//g.addvar("apical_dendrite[28].v(rel1)",2,1,2*tstop,0,2)
+//g.addvar("apical_dendrite[30].v(rel2)",3,1,2*tstop,0,2)
+//g.view(0, -70, 200, 100, 0, 352, 439.2,0)
+g.color(1)
+g.label("")
+g.label("Soma")
+g.label(3, 3, "geoc62564", 1, 2, -1, -2, 8)
+
+/*g.color(8)
+g.label("Contesto")
+g.color(2)
+g.label("Input 1")
+g.color(3)
+g.label("Input 2")
+g.color(5)
+g.label("Input 3")
+*/
+
+g.xaxis(1)
+
+xpanel("")
+xbutton("runm - refresh ", "runm()")
+xpanel()
+//b.intercept(0)
+//b.map()
+
+
+
+vbox.intercept(0)
+vbox.map("geoc62564",1,530,-100,1)	
+
+
+b = new VBox()
+b.intercept(1)
+
+
+
+
+
+
+
+p = new PlotShape()
+p.exec_menu("Shape Plot")
+//p.rotate(0,0,0,2,2,2)
+
+p.size(30,30,0,500)
+p.label(0,0,"geoc62564")
+p.variable("v")
+p.show(0)
+
+
+b.intercept(0)
+b.map("geoc62564",1100, 320, 200, 400)
+
+
+//vbox.intercept(0)
+//vbox.map()
+
+
+
+apical_dendrite[21] {
+
+print distance(rel)
+
+		s[0] = new NetStims(rel)
+		s[0].interval=0.2
+		s[0].number = 1
+		s[0].start=100
+		s[0].noise=0
+		s[0].seed(987651119)
+		rsyn[0] = new Exp2Syn(rel)
+		rsyn[0].tau1 = 1
+		rsyn[0].tau2 = 5
+		rsyn[0].e=0
+		nc[0] = new NetCon(s[0],rsyn[0],0,0,vett[0])
+
+}
+
+
+
+
+
+
+apical_dendrite[28] {
+
+print distance(rel1)
+
+
+
+		s[1] = new NetStims(rel1)
+		s[1].interval=0.2
+		s[1].number = 1
+		s[1].start=100
+		s[1].noise=0
+		s[1].seed(987651119)
+		rsyn[1] = new Exp2Syn(rel1)
+		rsyn[1].tau1 = 1
+		rsyn[1].tau2 = 5
+		rsyn[1].e=0
+		nc[1] = new NetCon(s[1],rsyn[1],0,0,vett[1])
+
+}
+
+
+
+
+
+apical_dendrite[30] {
+
+print distance(rel2)
+
+
+
+		s[2] = new NetStims(rel2)
+		s[2].interval=0.2
+		s[2].number = 1
+		s[2].start=100
+		s[2].noise=0
+		s[2].seed(987651119)
+		rsyn[2] = new Exp2Syn(rel2)
+		rsyn[2].tau1 = 1
+		rsyn[2].tau2 = 5
+		rsyn[2].e=0
+		nc[2] = new NetCon(s[2],rsyn[2],0,0,vett[2])
+
+}
+
+
+
+
+
+
+user5[28] {
+print distance(0.5)
+
+stim= new IClamp(0.5)
+stim.amp=0.59
+stim.dur=tstop
+stim.del=0
+
+
+}
+
+
+
+forsec "axon" {   
+                insert nax gbar_nax=gna * AXONM	sh_nax=nash
+                insert kdr gkdrbar_kdr=gkdr
+                insert kap gkabar_kap = KMULTP*1
+}
+
+forsec "soma" {   
+		insert hd ghdbar_hd=ghd	vhalfl_hd=-73
+                insert na3 ar_na3=1 sh_na3=nash gbar_na3=gna
+                insert kdr gkdrbar_kdr=gkdr
+                insert kap gkabar_kap = KMULTP
+}
+
+for i=0, numbasal-1 dendrite[i] {
+		if (diam>0.35) {factor=1} else {factor=1}
+		insert hd ghdbar_hd=ghd vhalfl_hd=-73
+                insert na3 ar_na3=1 gbar_na3=gna*factor sh_na3=nash
+                insert kdr gkdrbar_kdr=gkdr*factor
+		insert kap gkabar_kap=0
+		insert kad gkabar_kad=0
+
+		for (x) if (x>0 && x<1) { xdist = distance(x)
+                	ghdbar_hd(x) = factor*ghd*(1+3*xdist/100)
+                		if (xdist > 100){
+					vhalfl_hd=-81
+                        		gkabar_kad(x) = factor*KMULT*(1+xdist/100)
+                			} else {
+					vhalfl_hd=-73
+                        		gkabar_kap(x) = factor*KMULTP*(1+xdist/100)
+               				}
+		}
+}
+                
+forsec "apical_dendrite" {
+	insert ds
+	if (diam>0.35) {factor=1} else {factor=1}
+		insert hd ghdbar_hd=ghd
+                insert na3 ar_na3=1 gbar_na3=gna*factor sh_na3=nash
+                insert kdr gkdrbar_kdr=gkdr*factor
+		insert kap gkabar_kap=0
+		insert kad gkabar_kad=0
+
+		for (x) if (x>0 && x<1) { xdist = distance(x)
+                	ghdbar_hd(x) = factor*ghd*(1+3*xdist/100)
+                		if (xdist > 100){
+					vhalfl_hd=-81
+                        		gkabar_kad(x) = factor*KMULT*(1+xdist/100)
+                			} else {
+					vhalfl_hd=-73
+                        		gkabar_kap(x) = factor*KMULTP*(1+xdist/100)
+               				}
+		}
+}
+
+forsec "user5" {
+	insert ds
+		insert hd ghdbar_hd=ghd
+                insert na3 ar_na3=1 gbar_na3=gna sh_na3=nash
+                insert kdr gkdrbar_kdr=gkdr
+		insert kap gkabar_kap=0
+		insert kad gkabar_kad=0
+
+		for (x) if (x>0 && x<1) { xdist = distance(x)
+                	ghdbar_hd(x) = ghd*(1+3*xdist/100)
+                		if (xdist > 100){
+					vhalfl_hd=-81
+                        		gkabar_kad(x) = KMULT*(1+xdist/100)
+                			} else {
+					vhalfl_hd=-73
+                        		gkabar_kap(x) = KMULTP*(1+xdist/100)
+               				}
+		}
+}
+
+proc init() {
+	t=0
+        forall {
+        v=Vrest
+        if (ismembrane("nax") || ismembrane("na3")) {ena=55}
+        if (ismembrane("kdr") || ismembrane("kap") || ismembrane("kad")) {ek=-90}
+        if (ismembrane("hd") ) {ehd_hd=-30}
+	}
+	finitialize(Vrest)
+        fcurrent()
+
+        forall {
+	for (x) {
+	if (ismembrane("na3")||ismembrane("nax")){e_pas(x)=v(x)+(ina(x)+ik(x))/g_pas(x)}
+	if (ismembrane("hd")) {e_pas(x)=e_pas(x)+i_hd(x)/g_pas(x)}
+		}
+	}
+	cvode.re_init()
+	cvode.event(tstop)
+	access soma
+	g.begin()
+}
+
+
+proc advance() {
+	fadvance()
+	g.plot(t)
+	g.flush()
+	p.flush()
+	doNotify()
+}
+
+proc runp() {
+ropen("sinapsi_weights.txt")
+for i=0, pesi-1 {
+nc[i].weight = fscan()*1.e-3
+}
+if (nc[2].weight==8.e-3) {nc[2].weight=nc[2].weight-2.e-3}
+nc[0].weight=(nc[0].weight)+(20*1.e-3)
+nc[1].weight=(nc[1].weight)+(30*1.e-3)
+nc[2].weight=(nc[2].weight)+(41*1.e-3)
+
+
+
+ropen()
+stdinit()
+continuerun(tstop)
+doNotify()
+
+
+}
+
+proc runm() {
+runp(1)
+}
